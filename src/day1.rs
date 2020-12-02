@@ -3,9 +3,22 @@ use std::io::BufRead;
 
 pub fn solve(expenses: &[usize]) -> usize {
     for i in 0..expenses.len() {
-        for j in i+1..expenses.len() {
+        for j in i + 1..expenses.len() {
             if expenses[i] + expenses[j] == 2020 {
                 return expenses[i] * expenses[j];
+            }
+        }
+    }
+    panic!("no solution found");
+}
+
+pub fn solve_part2(expenses: &[usize]) -> usize {
+    for i in 0..expenses.len() {
+        for j in i + 1..expenses.len() {
+            for k in j + 1..expenses.len() {
+                if expenses[i] + expenses[j] + expenses[k] == 2020 {
+                    return expenses[i] * expenses[j] * expenses[k];
+                }
             }
         }
     }
@@ -26,23 +39,21 @@ mod test {
 
     #[test]
     fn example() {
-        assert!(solve(&[1721,
-            979,        
-            366,
-            299,
-            675,
-            1456]) == 514579)
+        assert!(solve(&[1721, 979, 366, 299, 675, 1456]) == 514579)
     }
 
     #[test]
     fn read_example() {
-        let buffer = io::BufReader::new("1721
+        let buffer = io::BufReader::new(
+            "1721
 979
 366
 299
 675
 1456
-".as_bytes());
+"
+            .as_bytes(),
+        );
         let result = solve(read_input(buffer).unwrap().as_slice());
         assert!(result == 514579);
     }
