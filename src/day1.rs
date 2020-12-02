@@ -1,6 +1,11 @@
 use std::io;
 use std::io::BufRead;
 
+pub fn day1(expenses: &[usize]) {
+    println!("Part 1: {}", solve(expenses));
+    println!("Part 2: {}", solve_part2(expenses));
+}
+
 pub fn solve(expenses: &[usize]) -> usize {
     for i in 0..expenses.len() {
         for j in i + 1..expenses.len() {
