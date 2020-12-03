@@ -2,8 +2,16 @@ pub fn run<IO: std::io::BufRead>(input: IO) -> std::io::Result<()> {
     let map = parse_map(input)?;
 
     println!("Part 1: {}", count_trajectory(&map, 1, 3));
+    println!("Part 2: {}", part2(&map));
 
     Ok(())
+}
+
+fn part2(map: &Map) -> usize {
+    [(1, 1), (3, 1), (5, 1), (7, 1), (1, 2)]
+        .iter()
+        .map(|(j, i)| count_trajectory(map, *i, *j))
+        .fold(1, |a, b| a * b)
 }
 
 fn parse_line(line: &str) -> Vec<bool> {
@@ -65,8 +73,7 @@ mod test {
         );
     }
 
-    #[test]
-    fn count_trajectory_example() -> std::io::Result<()> {
+    fn example_map() -> Map {
         let map = "..##.......
 #...#...#..
 .#....#..#.
@@ -79,8 +86,18 @@ mod test {
 #...##....#
 .#..#...#.#
 ";
-        let map = parse_map(std::io::BufReader::new(map.as_bytes()))?;
+        parse_map(std::io::BufReader::new(map.as_bytes())).unwrap()
+    }
+
+    #[test]
+    fn count_trajectory_example() -> std::io::Result<()> {
+        let map = example_map();
         assert_eq!(count_trajectory(&map, 1, 3), 7);
         Ok(())
+    }
+
+    #[test]
+    fn product_example() {
+        assert_eq!(part2(&example_map()), 336)
     }
 }
