@@ -5,6 +5,7 @@ extern crate regex;
 mod day1;
 mod day2;
 mod day3;
+mod day4;
 
 use std::env;
 
@@ -28,7 +29,10 @@ fn main() {
         },
         "day3" => {
             day3::run(input).unwrap();
-        }
+        },
+        "day4" => {
+            day4::run(input).unwrap();
+        },
         day => {
             println!("Unknown day: {}", day);
         }
