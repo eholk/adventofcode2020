@@ -58,17 +58,24 @@ fn parse_and_validate_passport(passport: &str) -> bool {
         }
 
         if !match key {
-            "byr" => 
-                validate_year(value, 1920, 2002),
+            "byr" => validate_year(value, 1920, 2002),
             "iyr" => validate_year(value, 2010, 2020),
             "eyr" => validate_year(value, 2020, 2030),
             "hgt" => validate_height(value),
             "hcl" => validate_hair_color(value),
-            "ecl" => value == "amb" || value == "blu" || value == "brn" || value == "gry" || value == "grn" || value == "hzl" || value == "oth",
+            "ecl" => {
+                value == "amb"
+                    || value == "blu"
+                    || value == "brn"
+                    || value == "gry"
+                    || value == "grn"
+                    || value == "hzl"
+                    || value == "oth"
+            }
             "pid" => validate_pid(value),
-            _ => false
+            _ => false,
         } {
-            return false
+            return false;
         }
     }
 
@@ -92,28 +99,28 @@ fn validate_hair_color(hc: &str) -> bool {
 }
 
 fn validate_year(y: &str, min: usize, max: usize) -> bool {
-    if y.len() != 4 { return false; }
+    if y.len() != 4 {
+        return false;
+    }
     match y.parse::<usize>() {
         Ok(y) => min <= y && y <= max,
-        Err(_) => false
+        Err(_) => false,
     }
 }
 
 fn validate_height(h: &str) -> bool {
     match h.strip_suffix("cm") {
-        Some(h) => {
-            match h.parse::<usize>() {
+        Some(h) => match h.parse::<usize>() {
             Ok(h) => 150 <= h && h <= 193,
-        Err(_) => false}
+            Err(_) => false,
         },
         None => match h.strip_suffix("in") {
-            Some(h) => {
-                match h.parse::<usize>() {
+            Some(h) => match h.parse::<usize>() {
                 Ok(h) => 59 <= h && h <= 76,
-            Err(_) => false}
+                Err(_) => false,
             },
-            None => false
-        }
+            None => false,
+        },
     }
 }
 
@@ -163,6 +170,9 @@ mod test {
         hcl:#cfa07d eyr:2025 pid:166559648
         iyr:2011 ecl:brn hgt:59in";
 
-        assert_eq!(count_valid_passports(std::io::BufReader::new(input.as_bytes())).unwrap(), 2);
+        assert_eq!(
+            count_valid_passports(std::io::BufReader::new(input.as_bytes())).unwrap(),
+            2
+        );
     }
 }

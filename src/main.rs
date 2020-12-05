@@ -6,6 +6,7 @@ mod day1;
 mod day2;
 mod day3;
 mod day4;
+mod day5;
 
 use std::env;
 
@@ -32,6 +33,9 @@ fn main() {
         },
         "day4" => {
             day4::run(input).unwrap();
+        },
+        "day5" => {
+            day5::run(input).unwrap();
         },
         day => {
             println!("Unknown day: {}", day);
