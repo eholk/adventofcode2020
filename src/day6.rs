@@ -26,10 +26,17 @@ fn count_groups(input: &str) -> usize {
 
 fn count_groups_all(input: &str) -> usize {
     let mut count = 0;
-    let all_answers = "abcdefghijklmnopqrstuvwxyz".chars().collect::<HashSet<char>>();
+    let all_answers = "abcdefghijklmnopqrstuvwxyz"
+        .chars()
+        .collect::<HashSet<char>>();
     for group in input.split("\r\n\r\n") {
-        count += group.lines().map(|person| person.chars().collect::<HashSet<char>>())
-        .fold(all_answers.clone(), |a, b| a.intersection(&b).map(|&a| a).collect()).len();
+        count += group
+            .lines()
+            .map(|person| person.chars().collect::<HashSet<char>>())
+            .fold(all_answers.clone(), |a, b| {
+                a.intersection(&b).map(|&a| a).collect()
+            })
+            .len();
     }
     count
 }
