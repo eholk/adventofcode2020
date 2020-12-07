@@ -6,24 +6,28 @@ pub fn run<IO: std::io::BufRead>(input: IO) -> std::io::Result<()> {
     let graph = parse_graph(input.lines().map(|line| line.unwrap()));
 
     println!("Part 1: {}", part1(&graph));
+    println!("Part 2: {}", part2(&graph));
     Ok(())
 }
 
-fn parse_graph<Lines: Iterator>(lines: Lines) -> Graph where Lines::Item: Borrow<str> {
+fn parse_graph<Lines: Iterator>(lines: Lines) -> Graph
+where
+    Lines::Item: Borrow<str>,
+{
     lines.map(|line| parse_line(line.borrow())).collect()
 }
 
 fn part1(graph: &Graph) -> usize {
     // build the reverse graph
     let mut backedges = HashMap::<String, HashSet<String>>::new();
-    for node in graph {
-        for (_, edge) in &node.edges {
+    for (name, edges) in graph {
+        for (_, edge) in edges {
             match backedges.get_mut(edge) {
-                Some(edges) => edges.insert(node.name.clone()),
+                Some(edges) => edges.insert(name.clone()),
                 None => backedges
                     .insert(
                         edge.clone(),
-                        HashSet::from_iter([&node.name].iter().map(|&s| s.clone())),
+                        HashSet::from_iter([&name].iter().map(|&&s| s.clone())),
                     )
                     .is_some(),
             };
@@ -39,7 +43,9 @@ fn part1(graph: &Graph) -> usize {
             Some(edges) => edges
                 .iter()
                 .map(|edge| traverse(backedges, edge))
-                .fold(HashSet::from_iter(edges), |a, b| a.union(&b).map(|&x| x).collect()),
+                .fold(HashSet::from_iter(edges), |a, b| {
+                    a.union(&b).map(|&x| x).collect()
+                }),
         }
     }
 
@@ -47,27 +53,33 @@ fn part1(graph: &Graph) -> usize {
     transitive_closure.len()
 }
 
-type Graph = Vec<Node>;
-
-#[derive(Debug, PartialEq)]
-struct Node {
-    name: String,
-    edges: Vec<(usize, String)>,
+fn part2(graph: &Graph) -> usize {
+    fn traverse(graph: &Graph, node: &String) -> usize {
+        let result = graph
+            .get(node)
+            .unwrap_or(&vec![])
+            .iter()
+            .map(|(count, edge)| count * traverse(graph, edge))
+            .fold(1, |a, b| a + b);
+        result
+    }
+    // -1 since we don't want to count the outermost bag
+    traverse(graph, &"shiny gold".to_string()) - 1
 }
+
+type Graph = HashMap<String, Vec<(usize, String)>>;
+type Node = (String, Vec<(usize, String)>);
 
 fn parse_line(line: &str) -> Node {
     let mut parts = line.split(" bags contain ");
     let name = parts.next().unwrap();
     let contents = parts.next().unwrap();
     if contents == "no other bags." {
-        Node {
-            name: name.to_string(),
-            edges: vec![],
-        }
+        (name.to_string(), vec![])
     } else {
-        Node {
-            name: name.to_string(),
-            edges: contents
+        (
+            name.to_string(),
+            contents
                 .split(", ")
                 .map(|entry| {
                     let mut parts = entry.split(" ");
@@ -76,7 +88,7 @@ fn parse_line(line: &str) -> Node {
                     (count.parse().unwrap(), name)
                 })
                 .collect(),
-        }
+        )
     }
 }
 
@@ -89,26 +101,20 @@ mod test {
         let line = "light red bags contain 1 bright white bag, 2 muted yellow bags.";
         assert_eq!(
             parse_line(line),
-            Node {
-                name: "light red".to_string(),
-                edges: vec![
+            (
+                "light red".to_string(),
+                vec![
                     (1, "bright white".to_string()),
                     (2, "muted yellow".to_string())
                 ]
-            }
+            )
         );
     }
 
     #[test]
     fn parse_line_no_bags() {
         let line = "dotted black bags contain no other bags.";
-        assert_eq!(
-            parse_line(line),
-            Node {
-                name: "dotted black".to_string(),
-                edges: vec![]
-            }
-        );
+        assert_eq!(parse_line(line), ("dotted black".to_string(), vec![]));
     }
 
     #[test]
@@ -116,10 +122,10 @@ mod test {
         let line = "bright white bags contain 1 shiny gold bag.";
         assert_eq!(
             parse_line(line),
-            Node {
-                name: "bright white".to_string(),
-                edges: vec![(1, "shiny gold".to_string())]
-            }
+            (
+                "bright white".to_string(),
+                vec![(1, "shiny gold".to_string())]
+            )
         );
     }
 
@@ -137,5 +143,20 @@ dotted black bags contain no other bags.";
         let graph = parse_graph(graph.lines());
 
         assert_eq!(part1(&graph), 4);
+    }
+
+    #[test]
+    fn part2_example() {
+        let graph = 
+"shiny gold bags contain 2 dark red bags.
+dark red bags contain 2 dark orange bags.
+dark orange bags contain 2 dark yellow bags.
+dark yellow bags contain 2 dark green bags.
+dark green bags contain 2 dark blue bags.
+dark blue bags contain 2 dark violet bags.
+dark violet bags contain no other bags.";
+        let graph = parse_graph(graph.lines());
+
+        assert_eq!(part2(&graph), 126);
     }
 }
