@@ -35,9 +35,9 @@ fn main() {
         "day4" => {
             day4::run(input).unwrap();
         },
-        // "day5" => {
-        //     day5::run(input).unwrap();
-        // },
+        "day5" => {
+            day5::run(input).unwrap();
+        },
         "day6" => {
             day6::run(input).unwrap();
         },

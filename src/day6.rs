@@ -12,7 +12,12 @@ pub fn run<IO: std::io::Read>(mut input: IO) -> std::io::Result<()> {
 
 fn count_groups(input: &str) -> usize {
     let mut count = 0;
-    for group in input.split("\r\n\r\n") {
+    let terminator = if input.find("\r\n").is_some() {
+        "\r\n\r\n"
+    } else {
+        "\n\n"
+    };
+    for group in input.split(terminator) {
         let mut answers = std::collections::HashSet::new();
         for c in group.chars() {
             if 'a' <= c && c <= 'z' {
@@ -29,7 +34,12 @@ fn count_groups_all(input: &str) -> usize {
     let all_answers = "abcdefghijklmnopqrstuvwxyz"
         .chars()
         .collect::<HashSet<char>>();
-    for group in input.split("\r\n\r\n") {
+    let terminator = if input.find("\r\n").is_some() {
+        "\r\n\r\n"
+    } else {
+        "\n\n"
+    };
+    for group in input.split(terminator) {
         count += group
             .lines()
             .map(|person| person.chars().collect::<HashSet<char>>())
@@ -50,6 +60,11 @@ mod test {
         assert_eq!(count_groups(EXAMPLE_GROUPS), 11);
     }
 
+    #[test]
+    fn count_groups_example_win() {
+        assert_eq!(count_groups(EXAMPLE_GROUPS_WIN), 11);
+    }
+
     static EXAMPLE_GROUPS: &str = "abc
 
 a
@@ -64,5 +79,21 @@ a
 a
 a
 
+b";
+
+static EXAMPLE_GROUPS_WIN: &str = "abc\r
+\r
+a\r
+b\r
+c\r
+\r
+ab\r
+ac\r
+\r
+a\r
+a\r
+a\r
+a\r
+\r
 b";
 }
