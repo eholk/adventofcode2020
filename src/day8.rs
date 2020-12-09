@@ -4,6 +4,7 @@ pub fn run<IO: std::io::BufRead>(input: IO) -> std::io::Result<()> {
     let mut machine = parse_program(input.lines().map(|line| line.unwrap()));
 
     println!("Part 1: {}", machine.trace());
+    println!("Part 2: {}", fix_loop(&mut machine));
 
     Ok(())
 }
@@ -12,8 +13,32 @@ fn parse_program<Lines: Iterator>(lines: Lines) -> Machine
 where
     Lines::Item: Borrow<str>,
 {
-    let code = lines.map(|line| Instruction::parse(line.borrow())).collect();
+    let code = lines
+        .map(|line| Instruction::parse(line.borrow()))
+        .collect();
     Machine::with_program(code)
+}
+
+fn fix_loop(machine: &mut Machine) -> isize {
+    machine.reset();
+    let result = machine.trace();
+    if machine.terminated() {
+        return result;
+    }
+
+    for i in 0..machine.code.len() {
+        if machine.code[i].can_toggle() {
+            machine.code[i].toggle();
+            machine.reset();
+            let result = machine.trace();
+            if machine.terminated() {
+                return result;
+            }
+            machine.code[i].toggle();
+        }
+    }
+
+    panic!("could not fix loop");
 }
 
 #[derive(PartialEq, Debug)]
@@ -34,6 +59,18 @@ impl Instruction {
         let argument = parts.next().unwrap().parse().unwrap();
         Instruction { opcode, argument }
     }
+
+    fn can_toggle(&self) -> bool {
+        self.opcode == "nop" || self.opcode == "jmp"
+    }
+
+    fn toggle(&mut self) {
+        match self.opcode {
+            "nop" => self.opcode = "jmp",
+            "jmp" => self.opcode = "nop",
+            other => panic!("could not toggle opcode '{}'", other),
+        }
+    }
 }
 
 struct Machine {
@@ -53,18 +90,39 @@ impl Machine {
 
     fn step(&mut self) {
         match &self.code[self.ip as usize] {
-            Instruction { opcode: "nop", argument: _ } => self.ip += 1,
-            Instruction { opcode: "acc", argument } => {
+            Instruction {
+                opcode: "nop",
+                argument: _,
+            } => self.ip += 1,
+            Instruction {
+                opcode: "acc",
+                argument,
+            } => {
                 self.acc += argument;
                 self.ip += 1;
-            },
-            Instruction { opcode: "jmp", argument } => self.ip += argument,
-            Instruction { opcode, argument: _ } => panic!("Unknown opcode: {}", opcode),
+            }
+            Instruction {
+                opcode: "jmp",
+                argument,
+            } => self.ip += argument,
+            Instruction {
+                opcode,
+                argument: _,
+            } => panic!("Unknown opcode: {}", opcode),
         }
     }
 
     fn trace(&mut self) -> isize {
-        self.trace_robust(false)
+        let mut visited = vec![false; self.code.len()];
+        while !self.terminated() {
+            let ip = self.ip as usize;
+            if visited[ip] {
+                return self.acc;
+            }
+            visited[ip] = true;
+            self.step();
+        }
+        self.acc
     }
 
     fn reset(&mut self) {
@@ -74,49 +132,6 @@ impl Machine {
 
     fn terminated(&self) -> bool {
         self.ip as usize == self.code.len()
-    }
-
-    fn toggle_instruction(&mut self, ip: usize) {
-        match self.code[ip].opcode {
-            "jmp" => self.code[ip].opcode = "nop",
-            "nop" => self.code[ip].opcode = "jmp",
-            other => panic!("can't toggle instruction {}", other),
-        }
-    }
-
-    fn trace_robust(&mut self, fix_loop: bool) -> isize {
-        let mut visited = vec![false; self.code.len()];
-        while !self.terminated() {
-            let ip = self.ip as usize;
-            if visited[ip] {
-                return self.acc;
-            }
-            visited[ip] = true;
-            self.step();
-            let new_ip = self.ip as usize;
-            // Check if we need to patch up the loop.
-            if fix_loop && visited[new_ip] {
-                // First try toggling the instruction we just ran.
-                self.toggle_instruction(ip);
-                self.reset();
-                let result = self.trace();
-                if self.terminated() {
-                    // Great, that worked!
-                    return result;
-                }
-                // Otherwise, try toggling the target instruction
-                self.toggle_instruction(ip); // reset the old instruction
-                self.toggle_instruction(new_ip);
-                self.reset();
-                let result = self.trace();
-                if self.terminated() {
-                    return result;
-                }
-
-                panic!("Could not patch loop");
-            }
-        }
-        self.acc
     }
 }
 
@@ -165,7 +180,7 @@ acc +6";
     }
 
     #[test]
-    fn fix_loop() {
+    fn fix_loop_example() {
         let program = "nop +0
 acc +1
 jmp +4
@@ -176,6 +191,6 @@ acc +1
 jmp -4
 acc +6";
         let mut machine = parse_program(program.lines());
-        assert_eq!(machine.trace_robust(true), 8);
+        assert_eq!(fix_loop(&mut machine), 8);
     }
 }
