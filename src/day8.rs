@@ -64,10 +64,57 @@ impl Machine {
     }
 
     fn trace(&mut self) -> isize {
+        self.trace_robust(false)
+    }
+
+    fn reset(&mut self) {
+        self.ip = 0;
+        self.acc = 0;
+    }
+
+    fn terminated(&self) -> bool {
+        self.ip as usize == self.code.len()
+    }
+
+    fn toggle_instruction(&mut self, ip: usize) {
+        match self.code[ip].opcode {
+            "jmp" => self.code[ip].opcode = "nop",
+            "nop" => self.code[ip].opcode = "jmp",
+            other => panic!("can't toggle instruction {}", other),
+        }
+    }
+
+    fn trace_robust(&mut self, fix_loop: bool) -> isize {
         let mut visited = vec![false; self.code.len()];
-        while !visited[self.ip as usize] {
-            visited[self.ip as usize] = true;
+        while !self.terminated() {
+            let ip = self.ip as usize;
+            if visited[ip] {
+                return self.acc;
+            }
+            visited[ip] = true;
             self.step();
+            let new_ip = self.ip as usize;
+            // Check if we need to patch up the loop.
+            if fix_loop && visited[new_ip] {
+                // First try toggling the instruction we just ran.
+                self.toggle_instruction(ip);
+                self.reset();
+                let result = self.trace();
+                if self.terminated() {
+                    // Great, that worked!
+                    return result;
+                }
+                // Otherwise, try toggling the target instruction
+                self.toggle_instruction(ip); // reset the old instruction
+                self.toggle_instruction(new_ip);
+                self.reset();
+                let result = self.trace();
+                if self.terminated() {
+                    return result;
+                }
+
+                panic!("Could not patch loop");
+            }
         }
         self.acc
     }
@@ -115,5 +162,20 @@ jmp -4
 acc +6";
         let mut machine = parse_program(program.lines());
         assert_eq!(machine.trace(), 5);
+    }
+
+    #[test]
+    fn fix_loop() {
+        let program = "nop +0
+acc +1
+jmp +4
+acc +3
+jmp -3
+acc -99
+acc +1
+jmp -4
+acc +6";
+        let mut machine = parse_program(program.lines());
+        assert_eq!(machine.trace_robust(true), 8);
     }
 }
