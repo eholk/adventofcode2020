@@ -10,7 +10,7 @@ pub fn run<IO: std::io::BufRead>(input: IO) -> std::io::Result<()> {
     Ok(())
 }
 
-fn read_input<Lines: Iterator>(lines: Lines) -> Vec<usize>
+pub fn read_input<Lines: Iterator>(lines: Lines) -> Vec<usize>
 where
     Lines::Item: Borrow<str>,
 {
