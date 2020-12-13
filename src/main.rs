@@ -6,6 +6,7 @@ mod day1;
 mod day10;
 mod day11;
 mod day12;
+mod day13;
 mod day2;
 mod day3;
 mod day4;
@@ -64,6 +65,9 @@ fn main() {
         }
         "day12" => {
             day12::run(input).unwrap();
+        }
+        "day13" => {
+            day13::run(input).unwrap();
         }
         day => {
             println!("Unknown day: {}", day);
