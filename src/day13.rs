@@ -40,14 +40,15 @@ fn find_nearest(start: usize, busses: &[Option<usize>]) -> (usize, usize) {
 }
 
 fn find_consecutive(busses: &[Option<usize>]) -> usize {
-    let step = busses[0].unwrap();
-    let mut t = 100000000000000;
-    t -= t % step;
-    while !busses.iter().enumerate().all(|(offset, bus)| match bus {
-        Some(freq) => (t + offset) % freq == 0,
-        None => true,
-    }) {
-        t += step;
+    let mut step = 1;
+    let mut t = step;
+    for (offset, bus) in busses.iter().enumerate() {
+        if let Some(freq) = bus {
+            while (t + offset) % freq != 0 {
+                t += step;
+            }
+            step *= freq;
+        }
     }
     t
 }
@@ -67,7 +68,16 @@ mod test {
 
     #[test]
     fn consecutive_example() {
-        let busses = vec![Some(7), Some(13), None, None, Some(59), None, Some(31), Some(19)];
+        let busses = vec![
+            Some(7),
+            Some(13),
+            None,
+            None,
+            Some(59),
+            None,
+            Some(31),
+            Some(19),
+        ];
 
         assert_eq!(find_consecutive(busses.as_slice()), 1068781);
     }
