@@ -7,9 +7,14 @@ pub fn run<IO: std::io::BufRead>(input: IO) -> std::io::Result<()> {
 
     let mut machine = Machine::new();
     machine.execute_program(program.iter());
-
     let sum = machine.sum_memory();
     println!("Part 1: {}", sum);
+
+    let mut machine = Machine::new();
+    machine.set_version2();
+    machine.execute_program(program.iter());
+    let sum = machine.sum_memory();
+    println!("Part 2: {}", sum);
 
     Ok(())
 }
@@ -28,35 +33,76 @@ enum Instruction {
 }
 
 struct Machine {
-    mask: (u64, u64),
+    mask: String,
     mem: BTreeMap<u64, u64>,
+    version2: bool,
 }
 
 impl Machine {
     fn new() -> Machine {
         Machine {
-            mask: (0, 0),
+            mask: "".into(),
             mem: BTreeMap::new(),
+            version2: false,
         }
+    }
+
+    fn set_version2(&mut self) {
+        self.version2 = true;
     }
 
     fn execute(&mut self, i: &Instruction) {
         match i {
-            Instruction::Mask(mask) => self.mask = parse_mask(mask),
+            Instruction::Mask(mask) => self.mask = mask.clone(),
             Instruction::Mem(addr, value) => {
-                self.mem.insert(*addr, apply_mask(self.mask, *value));
+                self.mem
+                    .insert(*addr, apply_mask(parse_mask(self.mask.as_str()), *value));
+            }
+        }
+    }
+
+    fn execute2(&mut self, i: &Instruction) {
+        let mem = &mut self.mem;
+        match i {
+            Instruction::Mask(mask) => self.mask = mask.clone(),
+            Instruction::Mem(addr, value) => {
+                for_each_address(self.mask.as_str(), *addr, &mut |addr| {
+                    mem.insert(addr, *value);
+                })
             }
         }
     }
 
     fn execute_program<'a, I: std::iter::Iterator<Item = &'a Instruction>>(&mut self, program: I) {
         for i in program {
-            self.execute(&i);
+            if self.version2 {
+                self.execute2(i);
+            } else {
+                self.execute(&i);
+            }
         }
     }
 
     fn sum_memory(&self) -> u64 {
         self.mem.values().sum()
+    }
+}
+
+fn for_each_address<F: FnMut(u64)>(mask: &str, base: u64, f: &mut F) {
+    if let Some(x) = mask.chars().nth(0) {
+        let bit = 1 << mask.len() - 1;
+        let rest = &mask[1..];
+        match x {
+            '0' => for_each_address(rest, base, f),
+            '1' => for_each_address(rest, base | bit, f),
+            'X' => {
+                for_each_address(rest, base | bit, f);
+                for_each_address(rest, base & !bit, f);
+            }
+            _ => panic!("illegal mask: {}", mask),
+        }
+    } else {
+        f(base);
     }
 }
 
@@ -134,6 +180,21 @@ mod test {
         machine.execute_program(program.iter());
 
         assert_eq!(machine.sum_memory(), 165);
+    }
+
+    #[test]
+    fn exec_program2() {
+        let program = "mask = 000000000000000000000000000000X1001X
+        mem[42] = 100
+        mask = 00000000000000000000000000000000X0XX
+        mem[26] = 1";
+        let program = parse_program(program.lines());
+
+        let mut machine = Machine::new();
+        machine.set_version2();
+        machine.execute_program(program.iter());
+
+        assert_eq!(machine.sum_memory(), 208);
     }
 
     #[test]
