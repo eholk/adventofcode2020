@@ -1,6 +1,14 @@
 use crate::util::Unwrap;
 use regex::Regex;
 use std::borrow::Borrow;
+use std::cmp::Ord;
+use std::cmp::Ordering;
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::iter::FromIterator;
+use std::ops::Range;
 use std::ops::RangeInclusive;
 use std::str::FromStr;
 
@@ -30,8 +38,8 @@ fn part2(problem: &Problem) -> usize {
 
     mappings
         .iter()
-        .filter_map(|&(field, i)| {
-            if field.starts_with("departure") {
+        .filter_map(|(field, &i)| {
+            if field.field_name.starts_with("departure") {
                 Some(problem.my_ticket[i])
             } else {
                 None
@@ -61,6 +69,29 @@ impl Problem {
         self.all_tickets()
             .filter(|t| t.iter().any(|&i| self.is_valid_for_any_field(i)))
             .collect()
+    }
+
+    fn find_candidate_mappings(&self, field_id: usize) -> Vec<&Constraint> {
+        let valid = self.valid_tickets();
+        self.constraints
+            .iter()
+            .filter(|c| valid.iter().all(|t| c.matches(t[field_id])))
+            .collect()
+    }
+
+    fn count_possible_assignments(&self, constraint: &Constraint) -> usize {
+        self.find_candidate_assignments(constraint).len()
+    }
+
+    fn find_candidate_assignments(&self, constraint: &Constraint) -> Vec<usize> {
+        let valid = self.valid_tickets();
+        self.fields_iter()
+            .filter(|&i| valid.iter().all(|t| constraint.matches(t[i])))
+            .collect()
+    }
+
+    fn fields_iter(&self) -> Range<usize> {
+        0..(self.my_ticket.len())
     }
 
     fn is_valid_for_any_field(&self, i: usize) -> bool {
@@ -124,7 +155,7 @@ where
     constraints
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 struct Constraint {
     field_name: String,
     ranges: [RangeInclusive<usize>; 2],
@@ -160,28 +191,48 @@ impl FromStr for Constraint {
     }
 }
 
-fn find_mappings(problem: &Problem) -> Vec<(&str, usize)> {
-    let valid_tickets = problem.valid_tickets();
+fn find_mappings(problem: &Problem) -> HashMap<&Constraint, usize> {
+    #[derive(PartialEq, Eq)]
+    struct PendingConstraint<'a> {
+        constraint: &'a Constraint,
+        candidates: Vec<usize>,
+    };
 
-    (0..(valid_tickets[0].len()))
-        .map(|i| {
-            println!("Finding field {}", i);
-            problem.constraints.iter().find_map(|c| {
-                println!("looking for {}", c.field_name);
-                if c.field_name.starts_with("departure")
-                    && valid_tickets.iter().all(|t| {
-                        println!("testing {} of {:?}", t[i], t);
-                        c.matches(t[i])
-                    })
-                {
-                    Some((c.field_name.as_str(), i))
-                } else {
-                    None
-                }
-            })
+    impl PartialOrd for PendingConstraint<'_> {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            self.candidates.len().partial_cmp(&other.candidates.len())
+        }
+    }
+
+    impl Ord for PendingConstraint<'_> {
+        fn cmp(&self, other: &Self) -> Ordering {
+            self.candidates.len().cmp(&other.candidates.len())
+        }
+    }
+
+    let mut constraints = BinaryHeap::from_iter(problem.constraints.iter().map(|c| {
+        Reverse(PendingConstraint {
+            constraint: c,
+            candidates: problem.find_candidate_assignments(c),
         })
-        .filter_map(|m| m)
-        .collect()
+    }));
+
+    let mut assigned_constraints = HashMap::new();
+    let mut assigned_fields = HashSet::new();
+
+    while let Some(c) = constraints.pop() {
+        println!("Assigning {}, candidates={:?}", c.0.constraint.field_name, c.0.candidates);
+        let remaining_candidates: Vec<&usize> =
+            c.0.candidates
+                .iter()
+                .filter(|&i| !assigned_fields.contains(i))
+                .collect();
+        assert_eq!(remaining_candidates.len(), 1);
+        let assignment = *remaining_candidates[0];
+        assigned_constraints.insert(c.0.constraint, assignment);
+        assigned_fields.insert(assignment);
+    }
+    assigned_constraints
 }
 
 #[cfg(test)]
@@ -197,10 +248,12 @@ mod test {
     #[test]
     fn example_mapping() {
         let problem = Problem::parse(EXAMPLE_INPUT_2.lines());
-        assert_eq!(
-            find_mappings(&problem),
-            vec![("row", 0), ("class", 1), ("seat", 2)]
-        );
+        let mut mapping = find_mappings(&problem)
+            .iter()
+            .map(|(c, &i)| (c.field_name.as_str(), i))
+            .collect::<Vec<(&str, usize)>>();
+        mapping.sort_by(|(_, a), (_, b)| a.cmp(b));
+        assert_eq!(mapping, vec![("row", 0), ("class", 1), ("seat", 2)]);
     }
 
     const EXAMPLE_INPUT: &str = &"class: 1-3 or 5-7
